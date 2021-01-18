@@ -24,11 +24,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.justeatitadmin.Adapter.MyCategoriesAdapter
+import com.example.justeatitadmin.Callback.IMyButtonCallback
 import com.example.justeatitadmin.Common.Common
+import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.Common.SpacesItemDecoration
+import com.example.justeatitadmin.EventBus.ToastEvent
 import com.example.justeatitadmin.Model.CategoryModel
 import com.example.justeatitadmin.R
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
 import dmax.dialog.SpotsDialog
 import org.greenrobot.eventbus.EventBus
 import java.util.*
@@ -46,8 +51,8 @@ class CategoryFragment : Fragment() {
     private var recycler_menu: RecyclerView?=null
 
     internal var categoryModels:List<CategoryModel> = ArrayList<CategoryModel>()
-    //internal lateinit var storage:FirebaseStorage
-    //internal lateinit var storageReference:StorageReference
+    internal lateinit var storage:FirebaseStorage
+    internal lateinit var storageReference: StorageReference
     private var imageUri:Uri?=null
     internal lateinit var img_category:ImageView
 
@@ -78,8 +83,8 @@ class CategoryFragment : Fragment() {
     }
 
     private fun initViews(root:View) {
-        //storage = FirebaseStorage.getInstance()
-        //storageReference = storage.reference
+        storage = FirebaseStorage.getInstance()
+        storageReference = storage.reference
 
         dialog = SpotsDialog.Builder().setContext(context)
             .setCancelable(false).build()
@@ -88,39 +93,19 @@ class CategoryFragment : Fragment() {
 
         recycler_menu = root.findViewById(R.id.recycler_menu) as RecyclerView
         recycler_menu!!.setHasFixedSize(true)
-        /*val layoutManager = LinearLayoutManager(context)
+        val layoutManager = LinearLayoutManager(context)
 
         recycler_menu!!.layoutManager = layoutManager
-        recycler_menu!!.addItemDecoration(DividerItemDecoration(context,layoutManager.orientation))*/
+        recycler_menu!!.addItemDecoration(DividerItemDecoration(context,layoutManager.orientation))
 
-        val layoutManager = GridLayoutManager(context,2)
-        layoutManager.orientation = RecyclerView.VERTICAL
-        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup(){
-            override fun getSpanSize(position: Int): Int {
-                return if (adapter != null)
-                {
-                    when(adapter!!.getItemViewType(position)){
-                        Common.DEFAULT_COLUMN_COUNT -> 1
-                        Common.FULL_WIDTH_COLUMN -> 2
-                        else -> -1
-                    }
-                }else
-                    -1
-            }
-
-        }
-
-        recycler_menu!!.layoutManager = layoutManager
-        recycler_menu!!.addItemDecoration(SpacesItemDecoration(8))
-
-
-        /*val swipe = object : MySwipeHelper(context!!,recycler_menu!!,200)
+        val swipe = object : MySwipeHelper(context!!,recycler_menu!!,200)
         {
             override fun instantiateMyButton(
                 viewHolder: RecyclerView.ViewHolder,
                 buffer: MutableList<MyButton>
             ) {
-                buffer.add(MyButton(context!!,
+                buffer.add(
+                    MyButton(context!!,
                     "Update",
                     30,
                     0,
@@ -132,10 +117,96 @@ class CategoryFragment : Fragment() {
                             showUpdateDialog()
                         }
 
-                    }))
+                    })
+                )
             }
 
-        }*/
+        }
+    }
+
+    private fun showUpdateDialog() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
+        builder.setTitle("Update Category")
+        builder.setMessage("Please fill Information")
+
+        val itemView = LayoutInflater.from(context).inflate(R.layout.layout_update_category,null)
+        val edt_category_name = itemView.findViewById<View>(R.id.edt_category_name) as EditText
+        img_category = itemView.findViewById<View>(R.id.img_category) as ImageView
+
+        //Set data
+        edt_category_name.setText(Common.categorySelected!!.name)
+        Glide.with(context!!).load(Common.categorySelected!!.image).into(img_category)
+
+        //Set event
+        img_category.setOnClickListener{view ->
+            val intent = Intent()
+            intent.type = "image/*"
+            intent.action = Intent.ACTION_GET_CONTENT
+            startActivityForResult(Intent.createChooser(intent,"Select Picture"), PICK_IMAGE_REQUEST)
+        }
+
+        builder.setNegativeButton("CANCEL"){dialogInterface, _-> dialogInterface.dismiss()}
+        builder.setPositiveButton("UPDATE"){dialogInterface, _->
+
+            val updateData = HashMap<String,Any>()
+            updateData["name"] = edt_category_name.text.toString()
+            if (imageUri !=null)
+            {
+                dialog.setMessage("Uploading...")
+                dialog.show()
+
+                val imageName = UUID.randomUUID().toString()
+                val imageFolder = storageReference.child("images/$imageName")
+                imageFolder.putFile(imageUri!!)
+                    .addOnFailureListener{e->
+                        dialog.dismiss()
+                        Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnProgressListener { taskSnapshot ->
+                        val progress = 100.0*taskSnapshot.bytesTransferred/taskSnapshot.totalByteCount
+                        dialog.setMessage("Uploaded $progress%")
+                    }
+                    .addOnSuccessListener { taskSnapshot ->
+                        dialogInterface.dismiss()
+                        imageFolder.downloadUrl.addOnSuccessListener { uri ->
+                            updateData["image"] = uri.toString()
+                            updateCategory(updateData)
+                        }
+                    }
+            }
+            else
+            {
+                updateCategory(updateData)
+            }
+        }
+
+        builder.setView(itemView)
+        val updateDialog = builder.create()
+        updateDialog.show()
+    }
+
+    private fun updateCategory(updateData: java.util.HashMap<String, Any>) {
+        FirebaseDatabase.getInstance()
+            .getReference(Common.CATEGORY_REF)
+            .child(Common.categorySelected!!.menu_id!!)
+            .updateChildren(updateData)
+            .addOnFailureListener{e->Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show() }
+            .addOnCompleteListener{task ->
+                categoryViewModel!!.loadCategory()
+                EventBus.getDefault().postSticky(ToastEvent(true,false))
+            }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
+        {
+            if (data != null && data.data != null)
+            {
+                imageUri = data.data
+                img_category.setImageURI(imageUri)
+            }
+        }
     }
 
 }
