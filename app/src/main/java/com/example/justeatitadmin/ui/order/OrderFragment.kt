@@ -17,13 +17,21 @@ import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.justeatitadmin.Adapter.MyOrderAdapter
+import com.example.justeatitadmin.Callback.IMyButtonCallback
 import com.example.justeatitadmin.Callback.IShipperLoadCallbackListener
 import com.example.justeatitadmin.Common.BottomSheetOrderFragment
+import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.EventBus.ChangeMenuClick
 import com.example.justeatitadmin.EventBus.LoadOrderEvent
 import com.example.justeatitadmin.R
 import com.google.firebase.database.FirebaseDatabase
+import com.karumi.dexter.Dexter
+import com.karumi.dexter.PermissionToken
+import com.karumi.dexter.listener.PermissionDeniedResponse
+import com.karumi.dexter.listener.PermissionGrantedResponse
+import com.karumi.dexter.listener.PermissionRequest
+import com.karumi.dexter.listener.single.PermissionListener
 import kotlinx.android.synthetic.main.fragment_order.*
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -92,7 +100,7 @@ class OrderFragment: Fragment() {
         activity!!.windowManager.defaultDisplay.getMetrics(displayMetrics)
         val width = displayMetrics.widthPixels
 
-        /*val swipe = object : MySwipeHelper(context!!,recycler_order,width/6)
+        val swipe = object : MySwipeHelper(context!!,recycler_order,width/6)
         {
             override fun instantiateMyButton(
                 viewHolder: RecyclerView.ViewHolder,
@@ -119,7 +127,7 @@ class OrderFragment: Fragment() {
                         override fun onClick(pos: Int){
                             Dexter.withActivity(activity)
                                 .withPermission(android.Manifest.permission.CALL_PHONE)
-                                .withListener(object :PermissionListener{
+                                .withListener(object : PermissionListener {
                                     override fun onPermissionGranted(response: PermissionGrantedResponse?) {
                                         val orderModel = adapter!!.getItemAtPosition(pos)
                                         val intent = Intent()
@@ -172,7 +180,7 @@ class OrderFragment: Fragment() {
                                         .addOnSuccessListener {
                                             adapter!!.removeItem(pos)
                                             adapter!!.notifyItemRemoved(pos)
-                                            updateTextCounter()
+                                            //updateTextCounter()
                                             dialogInterface.dismiss()
                                             Toast.makeText(context!!,"Order has been deleted!",Toast.LENGTH_SHORT).show()
                                         }
@@ -197,7 +205,7 @@ class OrderFragment: Fragment() {
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
 
-                            showEditDialog(adapter!!.getItemAtPosition(pos),pos)
+                            //showEditDialog(adapter!!.getItemAtPosition(pos),pos)
 
                         }
 
@@ -205,7 +213,7 @@ class OrderFragment: Fragment() {
                 )
             }
 
-        }*/
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
