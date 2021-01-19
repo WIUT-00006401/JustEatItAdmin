@@ -2,15 +2,15 @@ package com.example.justeatitadmin.ui.foodlist
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.SearchManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.DisplayMetrics
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.view.animation.AnimationUtils
 import android.view.animation.LayoutAnimationController
 import android.widget.EditText
@@ -61,10 +61,66 @@ class FoodListFragment : Fragment() {
     var foodModelList:List<FoodModel> = ArrayList<FoodModel>()
 
     //Variable
-    private var img_food: ImageView?=null
-    private lateinit var storage: FirebaseStorage
+    private var img_food:ImageView?=null
+    private lateinit var storage:FirebaseStorage
     private lateinit var storageReference: StorageReference
     private lateinit var dialog:android.app.AlertDialog
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.food_list_menu,menu)
+
+        //Create search view
+        val menuItem = menu.findItem(R.id.action_search)
+
+        val searchManager = activity!!.getSystemService(Context.SEARCH_SERVICE) as SearchManager
+        val searchView = menuItem.actionView as androidx.appcompat.widget.SearchView
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(activity!!.componentName!!))
+
+        //Event
+        searchView.setOnQueryTextListener(object :androidx.appcompat.widget.SearchView.OnQueryTextListener{
+            override fun onQueryTextSubmit(search: String?): Boolean {
+                startSearchFood(search!!)
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                return false
+            }
+
+        })
+
+        //Clear text on click to clear button
+        val closeButton = searchView.findViewById<View>(R.id.search_close_btn) as ImageView
+        closeButton.setOnClickListener{
+            val ed = searchView.findViewById<View>(R.id.search_src_text) as EditText
+            //Clear text
+            ed.setText("")
+            //Clear query
+            searchView.setQuery("",false)
+            //Collapse the action View
+            searchView.onActionViewCollapsed()
+            //Collapse the search widget
+            menuItem.collapseActionView()
+            //Restore result to original
+            foodListViewModel.getMutableFoodModelListData().value = Common.categorySelected!!.foods
+        }
+    }
+
+    private fun startSearchFood(s: String) {
+        val resultFood : MutableList<FoodModel> = ArrayList()
+        for (i in Common.categorySelected!!.foods!!.indices)
+        {
+            val foodModel = Common.categorySelected!!.foods!![i]
+            if (foodModel.name!!.toLowerCase().contains(s.toLowerCase()))
+            {
+                foodModel.positionInList = i
+                resultFood.add(foodModel)
+            }
+        }
+        //Update search result
+        foodListViewModel!!.getMutableFoodModelListData().value = resultFood
+    }
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -120,7 +176,7 @@ class FoodListFragment : Fragment() {
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
                             Common.foodSelected = foodModelList[pos]
-                            val builder = AlertDialog.Builder(context!!)
+                            val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
                             builder.setTitle("Delete")
                                 .setMessage("Do you really want to delete food?")
                                 .setNegativeButton("CANCEL",{dialogInterface, _-> dialogInterface.dismiss()})
@@ -145,7 +201,6 @@ class FoodListFragment : Fragment() {
                     Color.parseColor("#560027"),
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
-
                             val foodModel = adapter!!.getItemAtPosition(pos)
                             if (foodModel.positionInList == -1)
                                 showUpdateDialog(pos,foodModel)
@@ -203,37 +258,6 @@ class FoodListFragment : Fragment() {
         }
     }
 
-    private fun updateFood(foods: MutableList<FoodModel>?,isDelete: Boolean) {
-        val updateData = HashMap<String,Any>()
-        updateData["foods"] = foods!!
-
-        FirebaseDatabase.getInstance()
-            .getReference(Common.CATEGORY_REF)
-            .child(Common.categorySelected!!.menu_id!!)
-            .updateChildren(updateData)
-            .addOnFailureListener{e->Toast.makeText(context!!,""+e.message,Toast.LENGTH_SHORT).show()}
-            .addOnCompleteListener{task ->
-                if(task.isSuccessful)
-                {
-                    foodListViewModel.getMutableFoodModelListData()
-                    EventBus.getDefault().postSticky(ToastEvent(!isDelete,true))
-
-                }
-            }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
-        {
-            if (data != null && data.data != null)
-            {
-                imageUri = data.data
-                img_food!!.setImageURI(imageUri)
-            }
-        }
-    }
-
     private fun showUpdateDialog(pos: Int,foodModel: FoodModel) {
         val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
         builder.setTitle("Update")
@@ -252,11 +276,6 @@ class FoodListFragment : Fragment() {
         edt_food_description.setText(StringBuilder("").append(foodModel.description))
         Glide.with(context!!).load(foodModel.image).into(img_food!!)
 
-        edt_food_name.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].name))
-        edt_food_price.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].price))
-        edt_food_description.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].description))
-        Glide.with(context!!).load(Common.categorySelected!!.foods!![pos].image).into(img_food!!)
-
         //Set event
         img_food!!.setOnClickListener {
             val intent = Intent()
@@ -271,7 +290,7 @@ class FoodListFragment : Fragment() {
         builder.setNegativeButton("CANCEL", {dialogInterface, _-> dialogInterface.dismiss()})
         builder.setPositiveButton("UPDATE"){dialogInterface, i->
 
-            val updateFood = Common.categorySelected!!.foods!![pos]
+            val updateFood = foodModel
             updateFood.name = edt_food_name.text.toString()
             updateFood.price = if (TextUtils.isEmpty(edt_food_price.text))
                 0
@@ -314,6 +333,36 @@ class FoodListFragment : Fragment() {
         builder.setView(itemView)
         val updateDialog = builder.create()
         updateDialog.show()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
+        {
+            if (data != null && data.data != null)
+            {
+                imageUri = data.data
+                img_food!!.setImageURI(imageUri)
+            }
+        }
+    }
+
+    private fun updateFood(foods: MutableList<FoodModel>?,isDelete: Boolean) {
+        val updateData = HashMap<String,Any>()
+        updateData["foods"] = foods!!
+
+        FirebaseDatabase.getInstance()
+            .getReference(Common.CATEGORY_REF)
+            .child(Common.categorySelected!!.menu_id!!)
+            .updateChildren(updateData)
+            .addOnFailureListener{e->Toast.makeText(context!!,""+e.message,Toast.LENGTH_SHORT).show()}
+            .addOnCompleteListener{task ->
+                if(task.isSuccessful)
+                {
+                    foodListViewModel.getMutableFoodModelListData()
+                    EventBus.getDefault().postSticky(ToastEvent(!isDelete,true))
+                }
+            }
     }
 
     override fun onDestroy() {
