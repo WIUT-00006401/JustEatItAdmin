@@ -32,10 +32,12 @@ import com.example.justeatitadmin.Callback.IMyButtonCallback
 import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.Common.SpacesItemDecoration
+import com.example.justeatitadmin.EventBus.AddonSizeEditEvent
 import com.example.justeatitadmin.EventBus.ChangeMenuClick
 import com.example.justeatitadmin.EventBus.ToastEvent
 import com.example.justeatitadmin.Model.CategoryModel
 import com.example.justeatitadmin.Model.FoodModel
+import com.example.justeatitadmin.SizeAddonEditActivity
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
@@ -86,7 +88,7 @@ class FoodListFragment : Fragment() {
 
     private fun initViews(root: View?) {
 
-        //setHasOptionsMenu(true)
+        setHasOptionsMenu(true)
 
         dialog = SpotsDialog.Builder().setContext(context!!).setCancelable(false).build()
         storage = FirebaseStorage.getInstance()
@@ -100,12 +102,11 @@ class FoodListFragment : Fragment() {
 
         (activity as AppCompatActivity).supportActionBar!!.title = Common.categorySelected!!.name
 
-       /* val displayMetrics = DisplayMetrics()
+        val displayMetrics = DisplayMetrics()
         activity!!.windowManager.defaultDisplay.getMetrics(displayMetrics)
-        val width = displayMetrics.widthPixels*/
+        val width = displayMetrics.widthPixels
 
-        //val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,width/6)
-        val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,300)
+        val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,width/6)
         {
             override fun instantiateMyButton(
                 viewHolder: RecyclerView.ViewHolder,
@@ -144,17 +145,17 @@ class FoodListFragment : Fragment() {
                     Color.parseColor("#560027"),
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
-                            showUpdateDialog(pos)
+
                             val foodModel = adapter!!.getItemAtPosition(pos)
-                            /*if (foodModel.positionInList == -1)
+                            if (foodModel.positionInList == -1)
                                 showUpdateDialog(pos,foodModel)
                             else
-                                showUpdateDialog(foodModel.positionInList, foodModel)*/
+                                showUpdateDialog(foodModel.positionInList, foodModel)
                         }
 
                     })
                 )
-                /*buffer.add(MyButton(context!!,
+                buffer.add(MyButton(context!!,
                     "Size",
                     30,
                     0,
@@ -196,7 +197,7 @@ class FoodListFragment : Fragment() {
                         }
 
                     })
-                )*/
+                )
             }
 
         }
@@ -233,8 +234,7 @@ class FoodListFragment : Fragment() {
         }
     }
 
-    //private fun showUpdateDialog(pos: Int,foodModel: FoodModel) {
-    private fun showUpdateDialog(pos: Int) {
+    private fun showUpdateDialog(pos: Int,foodModel: FoodModel) {
         val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
         builder.setTitle("Update")
         builder.setMessage("Please fill Information")
@@ -247,10 +247,10 @@ class FoodListFragment : Fragment() {
         img_food = itemView.findViewById<View>(R.id.img_food_image) as ImageView
 
         //Set data
-        /*edt_food_name.setText(StringBuilder("").append(foodModel.name))
+        edt_food_name.setText(StringBuilder("").append(foodModel.name))
         edt_food_price.setText(StringBuilder("").append(foodModel.price))
         edt_food_description.setText(StringBuilder("").append(foodModel.description))
-        Glide.with(context!!).load(foodModel.image).into(img_food!!)*/
+        Glide.with(context!!).load(foodModel.image).into(img_food!!)
 
         edt_food_name.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].name))
         edt_food_price.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].price))
