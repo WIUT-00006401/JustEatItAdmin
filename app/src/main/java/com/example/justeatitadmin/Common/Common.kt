@@ -4,6 +4,7 @@ import android.graphics.Typeface
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.widget.TextView
 import com.example.justeatitadmin.Model.CategoryModel
@@ -22,6 +23,30 @@ object Common {
         txtUser!!.setText(builder, TextView.BufferType.SPANNABLE)
     }
 
+    fun setSpanStringColor(welcome: String, name: String?, txtUser: TextView?, color: Int) {
+        val builder = SpannableStringBuilder()
+        builder.append(welcome)
+        val txtSpannable = SpannableString(name)
+        val boldSpan = StyleSpan(Typeface.BOLD)
+        txtSpannable.setSpan(boldSpan, 0, name!!.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        txtSpannable.setSpan(ForegroundColorSpan(color), 0, name!!.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        builder.append(txtSpannable)
+        txtUser!!.setText(builder, TextView.BufferType.SPANNABLE)
+    }
+
+    fun convertStatusToString(orderStatus: Int): String? =
+        when(orderStatus)
+        {
+            0 -> "Placed"
+            1 -> "Shipping"
+            2 -> "Shipped"
+            -1 -> "Cancelled"
+            else -> "Unk"
+        }
+
+    val SHIPPER_ORDER_REF: String="ShippingOrder"
+    val SHIPPER_REF: String = "Shipper"
+    val ORDER_REF: String = "Order"
     val SERVER_REF = "Server"
     var currentServerUser: ServerUserModel?=null
 

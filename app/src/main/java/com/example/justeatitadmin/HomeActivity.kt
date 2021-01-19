@@ -42,15 +42,18 @@ class HomeActivity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
+        //subscribeToTopic(Common.getNewOrderTopic())
 
-        drawerLayout = findViewById(R.id.drawer_layout)
+        //updateToken()
+
+        drawerLayout= findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
         navController = findNavController(R.id.nav_host_fragment)
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_category, R.id.nav_food_list
+                R.id.nav_category, R.id.nav_food_list, R.id.nav_order,R.id.nav_shipper
             ), drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
@@ -95,8 +98,8 @@ class HomeActivity : AppCompatActivity() {
 
         //View
         val headerView = navView.getHeaderView(0)
-        //val txt_user = headerView.findViewById<View>(R.id.txt_user) as TextView
-        //Common.setSpanString("Hey ", Common.currentServerUser!!.name,txt_user)
+        val txt_user = headerView.findViewById<View>(R.id.txt_user) as TextView
+        Common.setSpanString("Hey ", Common.currentServerUser!!.name,txt_user)
 
         menuClick = R.id.nav_category
     }
