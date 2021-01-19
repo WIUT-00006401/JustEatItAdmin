@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.View
@@ -31,6 +32,7 @@ import com.example.justeatitadmin.Callback.IMyButtonCallback
 import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.Common.SpacesItemDecoration
+import com.example.justeatitadmin.EventBus.ChangeMenuClick
 import com.example.justeatitadmin.EventBus.ToastEvent
 import com.example.justeatitadmin.Model.CategoryModel
 import com.example.justeatitadmin.Model.FoodModel
@@ -39,6 +41,7 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import dmax.dialog.SpotsDialog
 import org.greenrobot.eventbus.EventBus
+import java.lang.StringBuilder
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -71,24 +74,23 @@ class FoodListFragment : Fragment() {
         val root = inflater.inflate(R.layout.fragment_food_list, container, false)
         initViews(root)
         foodListViewModel.getMutableFoodModelListData().observe(this, Observer {
-            //if (it != null){
-                //foodModelList = it
-                //adapter = MyFoodListAdapter(context!!, foodModelList)
-                adapter = MyFoodListAdapter(context!!, it)
+            if (it != null){
+                foodModelList = it
+                adapter = MyFoodListAdapter(context!!, foodModelList)
                 recycler_food_list!!.adapter = adapter
                 recycler_food_list!!.layoutAnimation = layoutAnimationController
-            //}
+            }
         })
         return root
     }
 
     private fun initViews(root: View?) {
 
-        /*setHasOptionsMenu(true)
+        //setHasOptionsMenu(true)
 
         dialog = SpotsDialog.Builder().setContext(context!!).setCancelable(false).build()
         storage = FirebaseStorage.getInstance()
-        storageReference = storage.reference*/
+        storageReference = storage.reference
 
         recycler_food_list = root!!.findViewById(R.id.recycler_food_list) as RecyclerView
         recycler_food_list!!.setHasFixedSize(true)
@@ -102,7 +104,8 @@ class FoodListFragment : Fragment() {
         activity!!.windowManager.defaultDisplay.getMetrics(displayMetrics)
         val width = displayMetrics.widthPixels*/
 
-        /*val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,width/6)
+        //val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,width/6)
+        val swipe = object : MySwipeHelper(context!!,recycler_food_list!!,300)
         {
             override fun instantiateMyButton(
                 viewHolder: RecyclerView.ViewHolder,
@@ -141,16 +144,17 @@ class FoodListFragment : Fragment() {
                     Color.parseColor("#560027"),
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
+                            showUpdateDialog(pos)
                             val foodModel = adapter!!.getItemAtPosition(pos)
-                            if (foodModel.positionInList == -1)
+                            /*if (foodModel.positionInList == -1)
                                 showUpdateDialog(pos,foodModel)
                             else
-                                showUpdateDialog(foodModel.positionInList, foodModel)
+                                showUpdateDialog(foodModel.positionInList, foodModel)*/
                         }
 
                     })
                 )
-                buffer.add(MyButton(context!!,
+                /*buffer.add(MyButton(context!!,
                     "Size",
                     30,
                     0,
@@ -192,11 +196,128 @@ class FoodListFragment : Fragment() {
                         }
 
                     })
-                )
+                )*/
             }
 
-        }*/
+        }
     }
 
+    private fun updateFood(foods: MutableList<FoodModel>?,isDelete: Boolean) {
+        val updateData = HashMap<String,Any>()
+        updateData["foods"] = foods!!
 
+        FirebaseDatabase.getInstance()
+            .getReference(Common.CATEGORY_REF)
+            .child(Common.categorySelected!!.menu_id!!)
+            .updateChildren(updateData)
+            .addOnFailureListener{e->Toast.makeText(context!!,""+e.message,Toast.LENGTH_SHORT).show()}
+            .addOnCompleteListener{task ->
+                if(task.isSuccessful)
+                {
+                    foodListViewModel.getMutableFoodModelListData()
+                    EventBus.getDefault().postSticky(ToastEvent(!isDelete,true))
+
+                }
+            }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
+        {
+            if (data != null && data.data != null)
+            {
+                imageUri = data.data
+                img_food!!.setImageURI(imageUri)
+            }
+        }
+    }
+
+    //private fun showUpdateDialog(pos: Int,foodModel: FoodModel) {
+    private fun showUpdateDialog(pos: Int) {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
+        builder.setTitle("Update")
+        builder.setMessage("Please fill Information")
+
+        val itemView = LayoutInflater.from(context).inflate(R.layout.layout_update_food, null)
+
+        val edt_food_name = itemView.findViewById<View>(R.id.edt_food_name) as EditText
+        val edt_food_price = itemView.findViewById<View>(R.id.edt_food_price) as EditText
+        val edt_food_description = itemView.findViewById<View>(R.id.edt_food_description) as EditText
+        img_food = itemView.findViewById<View>(R.id.img_food_image) as ImageView
+
+        //Set data
+        /*edt_food_name.setText(StringBuilder("").append(foodModel.name))
+        edt_food_price.setText(StringBuilder("").append(foodModel.price))
+        edt_food_description.setText(StringBuilder("").append(foodModel.description))
+        Glide.with(context!!).load(foodModel.image).into(img_food!!)*/
+
+        edt_food_name.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].name))
+        edt_food_price.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].price))
+        edt_food_description.setText(StringBuilder("").append(Common.categorySelected!!.foods!![pos].description))
+        Glide.with(context!!).load(Common.categorySelected!!.foods!![pos].image).into(img_food!!)
+
+        //Set event
+        img_food!!.setOnClickListener {
+            val intent = Intent()
+            intent.type = "image/*"
+            intent.action = Intent.ACTION_GET_CONTENT
+            startActivityForResult(
+                Intent.createChooser(intent, "Select Picture"),
+                PICK_IMAGE_REQUEST
+            )
+        }
+
+        builder.setNegativeButton("CANCEL", {dialogInterface, _-> dialogInterface.dismiss()})
+        builder.setPositiveButton("UPDATE"){dialogInterface, i->
+
+            val updateFood = Common.categorySelected!!.foods!![pos]
+            updateFood.name = edt_food_name.text.toString()
+            updateFood.price = if (TextUtils.isEmpty(edt_food_price.text))
+                0
+            else
+                edt_food_price.text.toString().toLong()
+            updateFood.description = edt_food_description.text.toString()
+
+            if (imageUri != null)
+            {
+                dialog.setMessage("Uploading...")
+                dialog.show()
+
+                val imageName = UUID.randomUUID().toString()
+                val imageFolder = storageReference.child("images/$imageName")
+                imageFolder.putFile(imageUri!!)
+                    .addOnFailureListener{e->
+                        dialog.dismiss()
+                        Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnProgressListener { taskSnapshot ->
+                        val progress = 100.0*taskSnapshot.bytesTransferred/taskSnapshot.totalByteCount
+                        dialog.setMessage("Uploaded $progress%")
+                    }
+                    .addOnSuccessListener { taskSnapshot ->
+                        dialogInterface.dismiss()
+                        imageFolder.downloadUrl.addOnSuccessListener { uri ->
+                            dialog.dismiss()
+                            updateFood.image = uri.toString()
+                            Common.categorySelected!!.foods!![pos] = updateFood
+                            updateFood(Common.categorySelected!!.foods!!,false)
+                        }
+                    }
+            }
+            else
+            {
+                Common.categorySelected!!.foods!![pos] = updateFood
+                updateFood(Common.categorySelected!!.foods!!,false)
+            }
+        }
+        builder.setView(itemView)
+        val updateDialog = builder.create()
+        updateDialog.show()
+    }
+
+    override fun onDestroy() {
+        EventBus.getDefault().postSticky(ChangeMenuClick(true))
+        super.onDestroy()
+    }
 }

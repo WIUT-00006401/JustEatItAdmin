@@ -1,5 +1,6 @@
 package com.example.justeatitadmin
 
+import android.content.Intent
 import android.os.Bundle
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
@@ -13,8 +14,16 @@ import com.google.android.material.navigation.NavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.TextView
+import android.widget.Toast
 import androidx.navigation.NavController
+import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.EventBus.CategoryClick
+import com.example.justeatitadmin.EventBus.ChangeMenuClick
+import com.example.justeatitadmin.EventBus.ToastEvent
+import com.google.firebase.auth.FirebaseAuth
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -41,12 +50,75 @@ class HomeActivity : AppCompatActivity() {
         // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.nav_category, R.id.nav_food_list, R.id.nav_slideshow,
-                R.id.nav_tools, R.id.nav_share, R.id.nav_send
+                R.id.nav_category, R.id.nav_food_list
             ), drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+
+        navView.setNavigationItemSelectedListener(object :NavigationView.OnNavigationItemSelectedListener{
+            override fun onNavigationItemSelected(p0: MenuItem): Boolean {
+                p0.isChecked = true
+                drawerLayout!!.closeDrawers()
+                if (p0.itemId == R.id.nav_sign_out)
+                {
+                    signOut()
+                }
+                else if (p0.itemId ==R.id.nav_category)
+                {
+                    if (menuClick != p0.itemId)
+                    {
+                        navController.popBackStack()
+                        navController.navigate(R.id.nav_category)
+                    }
+                }
+                else if (p0.itemId ==R.id.nav_shipper)
+                {
+                    if (menuClick != p0.itemId)
+                    {
+                        navController.popBackStack()
+                        navController.navigate(R.id.nav_shipper)
+                    }
+                }
+                else if (p0.itemId ==R.id.nav_order)
+                {
+                    if (menuClick != p0.itemId)
+                    {
+                        navController.popBackStack()
+                        navController.navigate(R.id.nav_order)
+                    }
+                }
+                menuClick = p0!!.itemId
+                return true
+            }
+        })
+
+        //View
+        val headerView = navView.getHeaderView(0)
+        //val txt_user = headerView.findViewById<View>(R.id.txt_user) as TextView
+        //Common.setSpanString("Hey ", Common.currentServerUser!!.name,txt_user)
+
+        menuClick = R.id.nav_category
+    }
+
+    private fun signOut() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("Sign out")
+            .setMessage("Do you really want to exit?")
+            .setNegativeButton("CANCEL", {dialogInterface, _ -> dialogInterface.dismiss()})
+            .setPositiveButton("OK"){dialogInterface, _->
+                Common.foodSelected = null
+                Common.categorySelected = null
+                Common.currentServerUser = null
+                FirebaseAuth.getInstance().signOut()
+
+                val intent = Intent(this@HomeActivity,MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
+        val dialog = builder.create()
+        dialog.show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -73,13 +145,34 @@ class HomeActivity : AppCompatActivity() {
     @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
     fun onCategoryClick(event: CategoryClick)
     {
-        if (event.isSuccess)
-            navController.navigate(R.id.nav_food_list)
-        /*if (menuClick != R.id.nav_food_list)
-        {
-            navController.navigate(R.id.nav_food_list)
-            menuClick = R.id.nav_food_list
-        }*/
+        if (event.isSuccess){
+            if (menuClick != R.id.nav_food_list)
+            {
+                navController.navigate(R.id.nav_food_list)
+                menuClick = R.id.nav_food_list
+            }
+        }
+    }
 
+    @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
+    fun onChangeMenuEvent(event: ChangeMenuClick)
+    {
+        if (event.isFromFoodList) {
+            navController!!.popBackStack(R.id.nav_category, true)
+            navController!!.navigate(R.id.nav_category)
+        }
+        menuClick = -1
+    }
+
+    @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
+    fun onToastEvent(event: ToastEvent)
+    {
+        if (event.isUpdate) {
+            Toast.makeText(this,"Update success", Toast.LENGTH_SHORT).show()
+        }
+        else{
+            Toast.makeText(this,"Delete success", Toast.LENGTH_SHORT).show()
+        }
+        EventBus.getDefault().postSticky(ChangeMenuClick(event.isBackFromFoodList))
     }
 }
