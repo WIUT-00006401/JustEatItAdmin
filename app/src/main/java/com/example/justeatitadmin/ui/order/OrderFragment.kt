@@ -7,9 +7,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.DisplayMetrics
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.view.animation.AnimationUtils
 import android.view.animation.LayoutAnimationController
 import android.widget.Toast
@@ -20,9 +18,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.justeatitadmin.Adapter.MyOrderAdapter
 import com.example.justeatitadmin.Callback.IShipperLoadCallbackListener
+import com.example.justeatitadmin.Common.BottomSheetOrderFragment
 import com.example.justeatitadmin.Common.MySwipeHelper
+import com.example.justeatitadmin.EventBus.ChangeMenuClick
+import com.example.justeatitadmin.EventBus.LoadOrderEvent
 import com.example.justeatitadmin.R
 import com.google.firebase.database.FirebaseDatabase
+import kotlinx.android.synthetic.main.fragment_order.*
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 import java.lang.StringBuilder
 
 class OrderFragment: Fragment() {
@@ -58,6 +63,10 @@ class OrderFragment: Fragment() {
                 recycler_order.layoutAnimation = layoutAnimationController
 
                 //updateTextCounter()
+                //to be cleared later
+                txt_order_filter.setText(StringBuilder("Orders (")
+                    .append(orderList.size)
+                    .append(")"))
             }
         })
 
@@ -197,5 +206,48 @@ class OrderFragment: Fragment() {
             }
 
         }*/
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.order_list_menu,menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_filter)
+        {
+            val bottomSheet = BottomSheetOrderFragment.instance
+            bottomSheet!!.show(activity!!.supportFragmentManager,"OrderList")
+            return true
+        }
+        else
+            return super.onOptionsItemSelected(item)
+
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!EventBus.getDefault().isRegistered(this))
+            EventBus.getDefault().register(this)
+    }
+
+    override fun onStop() {
+        if (EventBus.getDefault().hasSubscriberForEvent(LoadOrderEvent::class.java))
+            EventBus.getDefault().removeStickyEvent(LoadOrderEvent::class.java)
+        if (EventBus.getDefault().isRegistered(this))
+            EventBus.getDefault().unregister(this)
+
+        //compositeDisposable.clear()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        EventBus.getDefault().postSticky(ChangeMenuClick(true))
+        super.onDestroy()
+    }
+
+    @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
+    fun onLoadOrder(event: LoadOrderEvent)
+    {
+        orderViewModel.loadOrder(event.status)
     }
 }
