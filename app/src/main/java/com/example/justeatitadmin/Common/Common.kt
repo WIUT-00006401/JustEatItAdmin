@@ -31,8 +31,7 @@ object Common {
         FirebaseDatabase.getInstance()
             .getReference(TOKEN_REF)
             .child(Common.currentServerUser!!.uid!!)
-            //.setValue(TokenModel(Common.currentServerUser!!.phone!!,token,isServerToken,isShipperToken))
-            .setValue(TokenModel(Common.currentServerUser!!.phone!!,token))
+            .setValue(TokenModel(Common.currentServerUser!!.phone!!,token,isServerToken,isShipperToken))
             .addOnFailureListener{e-> Toast.makeText(context, ""+e.message, Toast.LENGTH_SHORT).show()}
     }
 

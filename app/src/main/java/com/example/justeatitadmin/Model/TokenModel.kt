@@ -7,8 +7,8 @@ class TokenModel {
     var shipperToken:Boolean=false
 
     constructor(){}
-    constructor(uid: String?, token: String?) {
-    //constructor(uid: String?, token: String?, serverToken: Boolean, shipperToken: Boolean) {
+
+    constructor(uid: String?, token: String?, serverToken: Boolean, shipperToken: Boolean) {
         this.uid = uid
         this.token = token
         this.serverToken = serverToken
