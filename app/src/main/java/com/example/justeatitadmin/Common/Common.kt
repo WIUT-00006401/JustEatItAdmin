@@ -104,7 +104,7 @@ object Common {
             else -> "Unk"
         }
 
-    val SHIPPER_ORDER_REF: String="ShippingOrder"
+    val SHIPPING_ORDER_REF: String="ShippingOrder"
     val SHIPPER_REF: String = "Shipper"
     val ORDER_REF: String = "Order"
     val SERVER_REF = "Server"
