@@ -6,10 +6,14 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.*
 import android.view.animation.AnimationUtils
 import android.view.animation.LayoutAnimationController
+import android.widget.Button
+import android.widget.RadioButton
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -24,14 +28,19 @@ import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.EventBus.ChangeMenuClick
 import com.example.justeatitadmin.EventBus.LoadOrderEvent
+import com.example.justeatitadmin.Model.OrderModel
 import com.example.justeatitadmin.R
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
+import dmax.dialog.SpotsDialog
 import kotlinx.android.synthetic.main.fragment_order.*
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -70,11 +79,8 @@ class OrderFragment: Fragment() {
                 recycler_order.adapter = adapter
                 recycler_order.layoutAnimation = layoutAnimationController
 
-                //updateTextCounter()
-                //to be cleared later
-                txt_order_filter.setText(StringBuilder("Orders (")
-                    .append(orderList.size)
-                    .append(")"))
+                updateTextCounter()
+
             }
         })
 
@@ -180,7 +186,7 @@ class OrderFragment: Fragment() {
                                         .addOnSuccessListener {
                                             adapter!!.removeItem(pos)
                                             adapter!!.notifyItemRemoved(pos)
-                                            //updateTextCounter()
+                                            updateTextCounter()
                                             dialogInterface.dismiss()
                                             Toast.makeText(context!!,"Order has been deleted!",Toast.LENGTH_SHORT).show()
                                         }
@@ -205,7 +211,7 @@ class OrderFragment: Fragment() {
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
 
-                            //showEditDialog(adapter!!.getItemAtPosition(pos),pos)
+                            showEditDialog(adapter!!.getItemAtPosition(pos),pos)
 
                         }
 
@@ -214,6 +220,242 @@ class OrderFragment: Fragment() {
             }
 
         }
+    }
+
+    private fun showEditDialog(orderModel: OrderModel, pos: Int) {
+        var layout_dialog:View?=null
+        var builder:AlertDialog.Builder?=null
+
+        var rdi_shipping: RadioButton?=null
+        var rdi_cancelled: RadioButton?=null
+        var rdi_shipped: RadioButton?=null
+        var rdi_delete: RadioButton?=null
+        var rdi_restore_placed: RadioButton?=null
+
+        if (orderModel.orderStatus == -1)
+        {
+            layout_dialog = LayoutInflater.from(context!!)
+                .inflate(R.layout.layout_dialog_cancelled, null)
+
+            builder = AlertDialog.Builder(context!!)
+                .setView(layout_dialog)
+
+            rdi_delete  = layout_dialog.findViewById<View>(R.id.rdi_delete) as RadioButton
+            rdi_restore_placed  = layout_dialog.findViewById<View>(R.id.rdi_restore_placed) as RadioButton
+
+        }
+        else if (orderModel.orderStatus == 0)
+        {
+            layout_dialog = LayoutInflater.from(context!!)
+                .inflate(R.layout.layout_dialog_shipping, null)
+            //recycler_shipper = layout_dialog.findViewById(R.id.recycler_shipper) as RecyclerView
+            builder = AlertDialog.Builder(context!!,
+                android.R.style.Theme_Material_Light_NoActionBar_Fullscreen)
+                .setView(layout_dialog)
+
+            rdi_shipping  = layout_dialog.findViewById<View>(R.id.rdi_shipping) as RadioButton
+            rdi_cancelled  = layout_dialog.findViewById<View>(R.id.rdi_cancelled) as RadioButton
+        }
+        else
+        {
+            layout_dialog = LayoutInflater.from(context!!)
+                .inflate(R.layout.layout_dialog_shipped, null)
+            builder = AlertDialog.Builder(context!!)
+                .setView(layout_dialog)
+
+            rdi_shipped  = layout_dialog.findViewById<View>(R.id.rdi_shipped) as RadioButton
+            rdi_cancelled  = layout_dialog.findViewById<View>(R.id.rdi_cancelled) as RadioButton
+        }
+
+        //View
+        val btn_ok = layout_dialog.findViewById<View>(R.id.btn_ok) as Button
+        val btn_cancel = layout_dialog.findViewById<View>(R.id.btn_cancel) as Button
+        val txt_status = layout_dialog.findViewById<View>(R.id.txt_status) as TextView
+
+        //Set data
+        txt_status.setText(StringBuilder("Order Status (")
+            .append(Common.convertStatusToString(orderModel.orderStatus))
+            .append(")"))
+
+        //Creat Dialog
+        val dialog = builder.create()
+
+        /*if (orderModel.orderStatus == 0)
+            *//*loadShipperList(pos,orderModel,dialog,btn_ok,btn_cancel,
+                rdi_shipping,rdi_shipped,rdi_cancelled,rdi_delete,rdi_restore_placed)*//*
+        else*/
+            showDialog(pos,orderModel,dialog,btn_ok,btn_cancel,
+                rdi_shipping,rdi_shipped,rdi_cancelled,rdi_delete,rdi_restore_placed)
+    }
+
+    private fun showDialog(
+        pos: Int,
+        orderModel: OrderModel,
+        dialog: AlertDialog,
+        btnOk: Button,
+        btnCancel: Button,
+        rdiShipping: RadioButton?,
+        rdiShipped: RadioButton?,
+        rdiCancelled: RadioButton?,
+        rdiDelete: RadioButton?,
+        rdiRestorePlaced: RadioButton?
+    ) {
+        dialog.show()
+        //Custom dialog
+        btnCancel.setOnClickListener{dialog.dismiss() }
+        btnOk.setOnClickListener{
+
+            if (rdiCancelled != null && rdiCancelled.isChecked)
+            {
+                updateOrder(pos,orderModel,-1)
+                dialog.dismiss()
+            }
+            /*else if (rdiShipping != null && rdiShipping.isChecked)
+            {
+
+                var shipperModel:ShipperModel?=null
+                if (myShipperSelectedAdapter!=null)
+                {
+                    shipperModel = myShipperSelectedAdapter!!.selectedShipper
+                    if (shipperModel != null)
+                    {
+                        createShippingOrder(pos,shipperModel,orderModel,dialog)
+                    }
+                    else
+                        Toast.makeText(context, "Please choose shipper",Toast.LENGTH_SHORT).show()
+                }
+            }*/
+            else if (rdiShipped != null && rdiShipped.isChecked)
+            {
+                updateOrder(pos,orderModel,2)
+                dialog.dismiss()
+            }
+            else if (rdiRestorePlaced != null && rdiRestorePlaced.isChecked)
+            {
+                updateOrder(pos,orderModel,0)
+                dialog.dismiss()
+            }
+            else if (rdiDelete != null && rdiDelete.isChecked)
+            {
+                deleteOrder(pos,orderModel)
+                dialog.dismiss()
+            }
+        }
+    }
+
+    private fun deleteOrder(pos: Int, orderModel: OrderModel) {
+        if (!TextUtils.isEmpty(orderModel.key))
+        {
+
+
+            FirebaseDatabase.getInstance()
+                .getReference(Common.ORDER_REF)
+                .child(orderModel.key!!)
+                .removeValue()
+                .addOnFailureListener{throawable -> Toast.makeText(context!!,""+throawable.message,
+                    Toast.LENGTH_SHORT).show()}
+                .addOnSuccessListener {
+
+                    adapter!!.removeItem(pos)
+                    adapter!!.notifyItemRemoved(pos)
+                    //updateTextCounter()
+                    Toast.makeText(context!!,"Update Order success!",
+                        Toast.LENGTH_SHORT).show()
+                }
+        }
+        else
+        {
+            Toast.makeText(context!!,"Order number must not be null or empty",Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateOrder(pos: Int, orderModel: OrderModel, status: Int) {
+        if (!TextUtils.isEmpty(orderModel.key))
+        {
+            val update_data = HashMap<String,Any>()
+            update_data.put("orderStatus",status)
+
+            FirebaseDatabase.getInstance()
+                .getReference(Common.ORDER_REF)
+                .child(orderModel.key!!)
+                .updateChildren(update_data)
+                .addOnFailureListener{throawable -> Toast.makeText(context!!,""+throawable.message,
+                    Toast.LENGTH_SHORT).show()}
+                .addOnSuccessListener {
+
+                    /*val dialog = SpotsDialog.Builder().setContext(context!!).setCancelable(false).build()
+                    dialog.show()
+
+                    //Load token
+                    FirebaseDatabase.getInstance()
+                        .getReference(Common.TOKEN_REF)
+                        .child(orderModel.userId!!)
+                        .addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onCancelled(p0: DatabaseError) {
+                                dialog.dismiss()
+                                Toast.makeText(context,""+p0.message,Toast.LENGTH_SHORT).show()
+                            }
+
+                            override fun onDataChange(p0: DataSnapshot) {
+                                if (p0.exists())
+                                {
+                                    //val tokenModel = p0.getValue(TokenModel::class.java)
+                                    val notiData = HashMap<String, String>()
+                                    notiData.put(Common.NOTI_TITLE,"Your order was updated")
+                                    notiData.put(Common.NOTI_CONTENT,StringBuilder("Your order ")
+                                        .append(orderModel.key)
+                                        .append(" was updated to ")
+                                        .append(Common.convertStatusToString(status)).toString())
+
+                                    *//*val sendData = FCMSendData(tokenModel!!.token!!,notiData)
+
+                                    compositeDisposable.add(
+                                        ifcmService.sendNotification(sendData)
+                                            .subscribeOn(Schedulers.io())
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .subscribe({fcmResponse->
+                                                dialog.dismiss()
+                                                if (fcmResponse.success == 1)
+                                                {
+                                                    Toast.makeText(context,"Order is updated successfully", Toast.LENGTH_SHORT).show()
+                                                }
+                                                else
+                                                {
+                                                    Toast.makeText(context,"Failed to send notification", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                                {t->
+                                                    dialog.dismiss()
+                                                    Toast.makeText(context,""+t.message,Toast.LENGTH_SHORT).show()
+                                                })
+                                    )*//*
+
+                                }
+                                else
+                                {
+                                    dialog.dismiss()
+                                    Toast.makeText(context,"Token not found",Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                        })*/
+
+                    adapter!!.removeItem(pos)
+                    adapter!!.notifyItemRemoved(pos)
+                    updateTextCounter()
+
+                }
+        }
+        else
+        {
+            Toast.makeText(context!!,"Order number must not be null or empty",Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateTextCounter() {
+        txt_order_filter.setText(StringBuilder("Orders (")
+            .append(adapter!!.itemCount)
+            .append(")"))
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
