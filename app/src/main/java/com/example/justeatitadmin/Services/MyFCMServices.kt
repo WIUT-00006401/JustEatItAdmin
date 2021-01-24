@@ -1,6 +1,8 @@
 package com.example.justeatitadmin.Services
 
+import android.content.Intent
 import com.example.justeatitadmin.Common.Common
+import com.example.justeatitadmin.MainActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import java.util.*
@@ -16,10 +18,20 @@ class MyFCMServices: FirebaseMessagingService() {
         val dataRecv = remoteMessage.data
         if (dataRecv != null)
         {
-            Common.showNotification(this, Random().nextInt(),
-                dataRecv[Common.NOTI_TITLE],
-                dataRecv[Common.NOTI_CONTENT],
-                null)
+            if (dataRecv[Common.NOTI_TITLE]!!.equals("New Order"))
+            {
+                val intent = Intent(this,MainActivity::class.java)
+                intent.putExtra(Common.IS_OPEN_ACTIVITY_NEW_ORDER,true)
+                Common.showNotification(this,Random().nextInt(),
+                    dataRecv[Common.NOTI_TITLE],
+                    dataRecv[Common.NOTI_CONTENT],
+                    intent)
+            }
+            else
+                Common.showNotification(this, Random().nextInt(),
+                    dataRecv[Common.NOTI_TITLE],
+                    dataRecv[Common.NOTI_CONTENT],
+                    null)
         }
     }
 }

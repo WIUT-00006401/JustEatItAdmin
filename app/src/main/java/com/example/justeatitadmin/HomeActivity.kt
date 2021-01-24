@@ -2,6 +2,7 @@ package com.example.justeatitadmin
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import androidx.navigation.findNavController
@@ -104,6 +105,18 @@ class HomeActivity : AppCompatActivity() {
         Common.setSpanString("Hey ", Common.currentServerUser!!.name,txt_user)
 
         menuClick = R.id.nav_category
+
+        checkOpenOrderFragment()
+    }
+
+    private fun checkOpenOrderFragment() {
+        val isOpenNewOrder = intent.extras!!.getBoolean(Common.IS_OPEN_ACTIVITY_NEW_ORDER,false)
+        if (isOpenNewOrder)
+        {
+            navController.popBackStack()
+            navController.navigate(R.id.nav_order)
+            menuClick = R.id.nav_order
+        }
     }
 
     private fun updateToken() {
@@ -111,6 +124,7 @@ class HomeActivity : AppCompatActivity() {
             .instanceId
             .addOnFailureListener{e-> Toast.makeText(this@HomeActivity,""+e.message,Toast.LENGTH_SHORT).show()}
             .addOnSuccessListener { instanceIdResult ->
+                Log.d("MyToken", instanceIdResult.token)
                 Common.updateToken(this@HomeActivity,instanceIdResult.token,true,false)
             }
     }
