@@ -42,6 +42,7 @@ class OrderViewModel: ViewModel(), IOrderCallbackListener {
                 for (itemSnapshot in p0.children){
                     val orderModel = itemSnapshot.getValue(OrderModel::class.java)
                     orderModel!!.key = itemSnapshot.key
+                    orderModel!!.orderNumber = itemSnapshot.key
                     tempList.add(orderModel)
                 }
                 orderCallbackListener.onOrderLoadSuccess(tempList)

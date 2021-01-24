@@ -17,22 +17,22 @@ import android.text.style.StyleSpan
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import com.example.justeatitadmin.Model.CategoryModel
-import com.example.justeatitadmin.Model.FoodModel
-import com.example.justeatitadmin.Model.ServerUserModel
-import com.example.justeatitadmin.Model.TokenModel
+import com.example.justeatitadmin.Model.*
 import com.example.justeatitadmin.R
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.database.FirebaseDatabase
 import java.lang.StringBuilder
+import java.util.ArrayList
 
 object Common {
 
     fun updateToken(context: Context, token: String, isServerToken:Boolean, isShipperToken:Boolean) {
-        FirebaseDatabase.getInstance()
-            .getReference(TOKEN_REF)
-            .child(Common.currentServerUser!!.uid!!)
-            .setValue(TokenModel(Common.currentServerUser!!.phone!!,token,isServerToken,isShipperToken))
-            .addOnFailureListener{e-> Toast.makeText(context, ""+e.message, Toast.LENGTH_SHORT).show()}
+        if (Common.currentServerUser != null)
+            FirebaseDatabase.getInstance()
+                .getReference(TOKEN_REF)
+                .child(Common.currentServerUser!!.uid!!)
+                .setValue(TokenModel(Common.currentServerUser!!.phone!!,token,isServerToken,isShipperToken))
+                .addOnFailureListener{e-> Toast.makeText(context, ""+e.message, Toast.LENGTH_SHORT).show()}
     }
 
     fun showNotification(context: Context, id: Int, title: String?, content: String?, intent: Intent?) {
@@ -103,6 +103,55 @@ object Common {
             else -> "Unk"
         }
 
+    fun decodePoly(encoded: String): List<LatLng>
+    {
+        val poly:MutableList<LatLng> = ArrayList<LatLng>()
+        var index = 0
+        var len = encoded.length
+        var lat = 0
+        var lng = 0
+        while(index < len)
+        {
+            var b:Int
+            var shift = 0
+            var result = 0
+            do{
+                b = encoded[index++].toInt() - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            }while (b >= 0x20)
+            val dlat = if (result and 1 != 0) (result shr 1).inv() else result shr 1
+            lat += dlat
+            shift = 0
+            result = 0
+            do{
+                b = encoded[index++].toInt() - 63
+                result = result or (b and 0x1f shl shift)
+                shift += 5
+            }while (b>=0x20)
+            val dlng = if (result and 1 != 0)(result shr 1).inv() else result shr 1
+            lng += dlng
+            val p = LatLng(lat.toDouble()/1E5,lng.toDouble()/1E5)
+            poly.add(p)
+        }
+        return poly
+    }
+
+    fun getBearing(begin: LatLng, end: LatLng): Float {
+        val lat = Math.abs(begin.latitude - end.longitude)
+        val lng = Math.abs(begin.longitude - end.longitude)
+        if (begin.latitude < end.latitude && begin.longitude < end.longitude)
+            return Math.toDegrees(Math.atan(lng/lat)).toFloat()
+        else if (begin.latitude >= end.latitude && begin.longitude < end.longitude)
+            return (90-Math.toDegrees(Math.atan(lng/lat))+90).toFloat()
+        else if (begin.latitude >= end.latitude && begin.longitude >= end.longitude)
+            return (Math.toDegrees(Math.atan(lng/lat))+180).toFloat()
+        else if (begin.latitude<end.latitude&&begin.longitude >= end.longitude)
+            return (90-Math.toDegrees(Math.atan(lng/lat))+270).toFloat()
+        return -1.0f
+    }
+
+    var currentOrderSelected: OrderModel?=null
     val SHIPPING_ORDER_REF: String="ShippingOrder"
     val SHIPPER_REF: String = "Shipper"
     val ORDER_REF: String = "Order"

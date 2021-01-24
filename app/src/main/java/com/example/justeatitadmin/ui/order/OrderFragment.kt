@@ -34,6 +34,7 @@ import com.example.justeatitadmin.Model.*
 import com.example.justeatitadmin.R
 import com.example.justeatitadmin.Remote.IFCMService
 import com.example.justeatitadmin.Remote.RetrofitFCMClient
+import com.example.justeatitadmin.TrackingOrderActivity
 import com.google.android.gms.tasks.Task
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -127,6 +128,22 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
                     Color.parseColor("#9b0000"),
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
+
+                            val orderModel = (recycler_order.adapter as MyOrderAdapter)
+                                .getItemAtPosition(pos)
+                            if (orderModel.orderStatus == 1) //Shipping
+                            {
+                                Common.currentOrderSelected = orderModel
+                                startActivity(Intent(context!!,TrackingOrderActivity::class.java))
+                            }
+                            else
+                            {
+                                Toast.makeText(context!!,
+                                StringBuilder("Your order has been ")
+                                    .append(Common.convertStatusToString(orderModel.orderStatus))
+                                    .append(". So you can't track directions"),
+                                Toast.LENGTH_SHORT).show()
+                            }
 
                         }
 
@@ -404,7 +421,7 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
         shippingOrder.currentLng = -1.0
         FirebaseDatabase.getInstance()
             .getReference(Common.SHIPPING_ORDER_REF)
-            .push()
+            .child(orderModel!!.key!!)
             .setValue(shippingOrder)
             .addOnFailureListener{e:Exception->
                 dialog.dismiss()
