@@ -151,6 +151,7 @@ object Common {
         return -1.0f
     }
 
+    var mostPopularSelected: MostPopularModel?=null
     val MOST_POPULAR: String="MostPopular"
     var bestDealsSelected: BestDealsModel?=null
     val BEST_DEALS: String="BestDeals"
