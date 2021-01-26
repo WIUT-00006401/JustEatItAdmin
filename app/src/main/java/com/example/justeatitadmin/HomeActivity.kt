@@ -102,6 +102,14 @@ class HomeActivity : AppCompatActivity() {
                         navController.navigate(R.id.nav_best_deals)
                     }
                 }
+                else if (p0.itemId ==R.id.nav_most_popular)
+                {
+                    if (menuClick != p0.itemId)
+                    {
+                        navController.popBackStack()
+                        navController.navigate(R.id.nav_most_popular)
+                    }
+                }
 
                 menuClick = p0!!.itemId
                 return true

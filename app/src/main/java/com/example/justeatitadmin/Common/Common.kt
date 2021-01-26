@@ -151,6 +151,7 @@ object Common {
         return -1.0f
     }
 
+    val MOST_POPULAR: String="MostPopular"
     var bestDealsSelected: BestDealsModel?=null
     val BEST_DEALS: String="BestDeals"
     val IS_OPEN_ACTIVITY_NEW_ORDER: String?="IsOpenActivityOrder"
