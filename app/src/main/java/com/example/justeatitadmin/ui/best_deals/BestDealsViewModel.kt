@@ -31,7 +31,7 @@ class BestDealsViewModel : ViewModel(), IBestDealsCallbackListener {
         return bestDealsListMutable!!
     }
 
-    private fun loadBestDeals() {
+    fun loadBestDeals() {
         val tempList = ArrayList<BestDealsModel>()
         val bestDealsRef = FirebaseDatabase.getInstance().getReference(Common.BEST_DEALS)
         bestDealsRef.addListenerForSingleValueEvent(object : ValueEventListener {
