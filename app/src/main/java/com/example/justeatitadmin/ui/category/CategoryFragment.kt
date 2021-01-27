@@ -106,22 +106,65 @@ class CategoryFragment : Fragment() {
             ) {
                 buffer.add(
                     MyButton(context!!,
-                    "Update",
+                    "Delete",
                     30,
                     0,
-                    Color.parseColor("#560027"),
+                    Color.parseColor("#333639"),
                     object : IMyButtonCallback {
                         override fun onClick(pos: Int){
                             Common.categorySelected = categoryModels[pos]
 
-                            showUpdateDialog()
+                            showDeleteDialog()
                         }
 
                     })
                 )
+
+                buffer.add(
+                    MyButton(context!!,
+                        "Update",
+                        30,
+                        0,
+                        Color.parseColor("#560027"),
+                        object : IMyButtonCallback {
+                            override fun onClick(pos: Int){
+                                Common.categorySelected = categoryModels[pos]
+
+                                showUpdateDialog()
+                            }
+
+                        })
+                )
             }
 
         }
+    }
+
+    private fun showDeleteDialog() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
+        builder.setTitle("Delete Category")
+        builder.setMessage("Do you really want to delete this category?")
+
+        builder.setNegativeButton("CANCEL"){dialogInterface, _-> dialogInterface.dismiss()}
+        builder.setPositiveButton("DELETE"){dialogInterface, _->
+
+            deleteCategory()
+        }
+
+        val deleteDialog = builder.create()
+        deleteDialog.show()
+    }
+
+    private fun deleteCategory() {
+        FirebaseDatabase.getInstance()
+            .getReference(Common.CATEGORY_REF)
+            .child(Common.categorySelected!!.menu_id!!)
+            .removeValue()
+            .addOnFailureListener{e->Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show() }
+            .addOnCompleteListener{task ->
+                categoryViewModel!!.loadCategory()
+                EventBus.getDefault().postSticky(ToastEvent(false,false))
+            }
     }
 
     private fun showUpdateDialog() {
