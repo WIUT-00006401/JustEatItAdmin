@@ -39,6 +39,7 @@ import com.google.firebase.storage.StorageReference
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.android.synthetic.main.app_bar_home.*
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -69,6 +70,8 @@ class HomeActivity : AppCompatActivity() {
         setContentView(R.layout.activity_home)
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
+
+        fab_chat.setOnClickListener{startActivity(Intent(this,ChatListActivity::class.java))}
 
         ifcmService = RetrofitFCMClient.getInstance().create(IFCMService::class.java)
         storage = FirebaseStorage.getInstance()
@@ -141,7 +144,7 @@ class HomeActivity : AppCompatActivity() {
                 }
                 else if (p0.itemId ==R.id.nav_news)
                 {
-                    showSendNewsDialog()
+                    //showSendNewsDialog()
                 }
 
                 menuClick = p0!!.itemId
@@ -152,89 +155,89 @@ class HomeActivity : AppCompatActivity() {
         //View
         val headerView = navView.getHeaderView(0)
         val txt_user = headerView.findViewById<View>(R.id.txt_user) as TextView
-        Common.setSpanString("Hey ", Common.currentServerUser!!.name,txt_user)
+        Common.setSpanString("Hey, ", Common.currentServerUser!!.name,txt_user)
 
         menuClick = R.id.nav_category
 
         checkOpenOrderFragment()
     }
 
-    private fun showSendNewsDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("News System")
-            .setMessage("Send News Notification to call Client")
-        val itemView = LayoutInflater.from(this).inflate(R.layout.layout_news_system, null)
-
-        //Views
-        val edt_title = itemView.findViewById<View>(R.id.edt_title) as EditText
-        val edt_content = itemView.findViewById<View>(R.id.edt_content) as EditText
-        val edt_link = itemView.findViewById<View>(R.id.edt_link) as EditText
-
-        val rdi_none = itemView.findViewById<View>(R.id.rdi_none) as RadioButton
-        val rdi_link = itemView.findViewById<View>(R.id.rdi_link) as RadioButton
-        val rdi_upload = itemView.findViewById<View>(R.id.rdi_image) as RadioButton
-
-        img_upload = itemView.findViewById<View>(R.id.img_upload) as ImageView
-
-        //Event
-        rdi_none.setOnClickListener{
-            edt_link.visibility = View.GONE
-            img_upload!!.visibility = View.GONE
-        }
-
-        rdi_link.setOnClickListener{
-            edt_link.visibility = View.VISIBLE
-            img_upload!!.visibility = View.GONE
-        }
-
-        rdi_upload.setOnClickListener{
-            edt_link.visibility = View.GONE
-            img_upload!!.visibility = View.VISIBLE
-        }
-
-        img_upload!!.setOnClickListener{
-            val intent = Intent()
-            intent.type = "image/*"
-            intent.action = Intent.ACTION_GET_CONTENT
-            startActivityForResult(Intent.createChooser(intent,"Select Picture"), PICK_IMAGE_REQUEST)
-        }
-
-        builder.setView(itemView)
-        builder.setNegativeButton("CANCEL", {dialogInterface, i -> dialogInterface.dismiss()})
-        builder.setPositiveButton("SEND", {dialogInterface, i ->
-            if (rdi_none.isChecked)
-                sendNews(edt_title.text.toString(), edt_content.text.toString())
-            else if(rdi_link.isChecked)
-                sendNews(edt_title.text.toString(), edt_content.text.toString(),edt_link.text.toString())
-            else if (rdi_upload.isChecked)
-            {
-                if (imgUri != null)
-                {
-                    val dialog = AlertDialog.Builder(this).setMessage("Uploading...").create()
-                    dialog.show()
-                    val file_name = UUID.randomUUID().toString()
-                    val newsImage = storageReference!!.child("news/$file_name")
-                    newsImage.putFile(imgUri!!)
-                        .addOnFailureListener{e:Exception -> dialog.dismiss()
-                        Toast.makeText(this,e.message,Toast.LENGTH_LONG).show()
-                        }.addOnSuccessListener { taskSnapshot ->
-                            dialog.dismiss()
-                            newsImage.downloadUrl.addOnSuccessListener { uri ->
-                                sendNews(edt_title.text.toString(),edt_content.text.toString(),uri.toString())
-                            }
-                        }.addOnProgressListener { taskSnapshot ->
-                            val progress =
-                                Math.round(100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toDouble()
-                            dialog.setMessage(StringBuilder("Uploading: $progress %"))
-                        }
-                }
-            }
-        })
-
-        val dialog = builder.create()
-        dialog.show()
-
-    }
+//    private fun showSendNewsDialog() {
+//        val builder = AlertDialog.Builder(this)
+//        builder.setTitle("News System")
+//            .setMessage("Send News Notification to call Client")
+//        val itemView = LayoutInflater.from(this).inflate(R.layout.layout_news_system, null)
+//
+//        //Views
+//        val edt_title = itemView.findViewById<View>(R.id.edt_title) as EditText
+//        val edt_content = itemView.findViewById<View>(R.id.edt_content) as EditText
+//        val edt_link = itemView.findViewById<View>(R.id.edt_link) as EditText
+//
+//        val rdi_none = itemView.findViewById<View>(R.id.rdi_none) as RadioButton
+//        val rdi_link = itemView.findViewById<View>(R.id.rdi_link) as RadioButton
+//        val rdi_upload = itemView.findViewById<View>(R.id.rdi_image) as RadioButton
+//
+//        img_upload = itemView.findViewById<View>(R.id.img_upload) as ImageView
+//
+//        //Event
+//        rdi_none.setOnClickListener{
+//            edt_link.visibility = View.GONE
+//            img_upload!!.visibility = View.GONE
+//        }
+//
+//        rdi_link.setOnClickListener{
+//            edt_link.visibility = View.VISIBLE
+//            img_upload!!.visibility = View.GONE
+//        }
+//
+//        rdi_upload.setOnClickListener{
+//            edt_link.visibility = View.GONE
+//            img_upload!!.visibility = View.VISIBLE
+//        }
+//
+//        img_upload!!.setOnClickListener{
+//            val intent = Intent()
+//            intent.type = "image/*"
+//            intent.action = Intent.ACTION_GET_CONTENT
+//            startActivityForResult(Intent.createChooser(intent,"Select Picture"), PICK_IMAGE_REQUEST)
+//        }
+//
+//        builder.setView(itemView)
+//        builder.setNegativeButton("CANCEL", {dialogInterface, i -> dialogInterface.dismiss()})
+//        builder.setPositiveButton("SEND", {dialogInterface, i ->
+//            if (rdi_none.isChecked)
+//                sendNews(edt_title.text.toString(), edt_content.text.toString())
+//            else if(rdi_link.isChecked)
+//                sendNews(edt_title.text.toString(), edt_content.text.toString(),edt_link.text.toString())
+//            else if (rdi_upload.isChecked)
+//            {
+//                if (imgUri != null)
+//                {
+//                    val dialog = AlertDialog.Builder(this).setMessage("Uploading...").create()
+//                    dialog.show()
+//                    val file_name = UUID.randomUUID().toString()
+//                    val newsImage = storageReference!!.child("news/$file_name")
+//                    newsImage.putFile(imgUri!!)
+//                        .addOnFailureListener{e:Exception -> dialog.dismiss()
+//                        Toast.makeText(this,e.message,Toast.LENGTH_LONG).show()
+//                        }.addOnSuccessListener { taskSnapshot ->
+//                            dialog.dismiss()
+//                            newsImage.downloadUrl.addOnSuccessListener { uri ->
+//                                sendNews(edt_title.text.toString(),edt_content.text.toString(),uri.toString())
+//                            }
+//                        }.addOnProgressListener { taskSnapshot ->
+//                            val progress =
+//                                Math.round(100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toDouble()
+//                            dialog.setMessage(StringBuilder("Uploading: $progress %"))
+//                        }
+//                }
+//            }
+//        })
+//
+//        val dialog = builder.create()
+//        dialog.show()
+//
+//    }
 
     private fun sendNews(title: String, content: String, url:String) {
         val notificationData: MutableMap<String,String> = HashMap()
@@ -387,15 +390,15 @@ class HomeActivity : AppCompatActivity() {
         EventBus.getDefault().postSticky(ChangeMenuClick(event.isBackFromFoodList))
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
-        {
-            if (data != null && data.data != null)
-            {
-                imgUri = data.data
-                img_upload!!.setImageURI(imgUri)
-            }
-        }
-    }
+//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+//        super.onActivityResult(requestCode, resultCode, data)
+//        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK)
+//        {
+//            if (data != null && data.data != null)
+//            {
+//                imgUri = data.data
+//                img_upload!!.setImageURI(imgUri)
+//            }
+//        }
+//    }
 }

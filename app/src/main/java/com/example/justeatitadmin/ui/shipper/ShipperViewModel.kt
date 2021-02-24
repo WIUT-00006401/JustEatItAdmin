@@ -34,7 +34,9 @@ class ShipperViewModel : ViewModel(), IShipperLoadCallbackListener {
 
     private fun loadShipper() {
         val tempList = ArrayList<ShipperModel>()
-        val shipperRef = FirebaseDatabase.getInstance().getReference(Common.SHIPPER_REF)
+        val shipperRef = FirebaseDatabase.getInstance().getReference(Common.RESTAURANT_REF)
+            .child(Common.currentServerUser!!.restaurant!!)
+            .child(Common.SHIPPER_REF)
         shipperRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onCancelled(p0: DatabaseError) {
                 shipperCallbackListener.onShipperLoadFailed((p0.message))

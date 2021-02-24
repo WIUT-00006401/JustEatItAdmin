@@ -59,7 +59,7 @@ object Common {
 
         builder.setContentTitle(title!!).setContentText(content!!).setAutoCancel(true)
             .setSmallIcon(R.mipmap.ic_launcher_round)
-            .setLargeIcon(BitmapFactory.decodeResource(context.resources,R.drawable.ic_restaurant_menu_black_24dp))
+            .setLargeIcon(BitmapFactory.decodeResource(context.resources,R.drawable.ic_restaurant_menu_white_24dp))
         if (pendingIntent!=null)
             builder.setContentIntent(pendingIntent)
 
@@ -69,7 +69,11 @@ object Common {
     }
 
     fun getNewOrderTopic(): String {
-        return StringBuilder("/topics/new_order").toString()
+        return java.lang.StringBuilder("/topics/")
+            .append(Common.currentServerUser!!.restaurant)
+            .append("_")
+            .append("new_order")
+            .toString()
     }
 
     fun setSpanString(welcome: String, name: String?, txtUser: TextView?) {
@@ -152,8 +156,20 @@ object Common {
     }
 
     fun getNewsTopic(): String {
-        return StringBuilder("/topics/news").toString()
+        return StringBuilder("/topics/")
+            .append(Common.currentServerUser!!.restaurant!!)
+            .append("_")
+            .append("news")
+            .toString()
     }
+
+    val CHAT_REF: String = "Chat"
+    val RESTAURANT_REF: String = "Restaurant"
+    val SHIPPING_ORDER_REF: String="ShippingOrder"
+    val SHIPPER_REF: String = "Shipper"
+    val ORDER_REF: String = "Order"
+    val SERVER_REF = "Server"
+    const val CATEGORY_REF: String="Category"
 
     val IMAGE_URL: String="IMAGE_URL"
     val IS_SEND_IMAGE: String="IS_SEND_IMAGE"
@@ -163,13 +179,8 @@ object Common {
     val BEST_DEALS: String="BestDeals"
     val IS_OPEN_ACTIVITY_NEW_ORDER: String?="IsOpenActivityOrder"
     var currentOrderSelected: OrderModel?=null
-    val SHIPPING_ORDER_REF: String="ShippingOrder"
-    val SHIPPER_REF: String = "Shipper"
-    val ORDER_REF: String = "Order"
-    val SERVER_REF = "Server"
-    var currentServerUser: ServerUserModel?=null
 
-    const val CATEGORY_REF: String="Category"
+    var currentServerUser: ServerUserModel?=null
     var foodSelected: FoodModel?=null
     var categorySelected: CategoryModel?=null
     val DEFAULT_COLUMN_COUNT: Int=0

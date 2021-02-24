@@ -202,7 +202,9 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
                                 .setNegativeButton("CANCEL"){dialogInterface,i->dialogInterface.dismiss()}
                                 .setPositiveButton("DELETE"){dialogInterface, i->
                                     FirebaseDatabase.getInstance()
-                                        .getReference(Common.ORDER_REF)
+                                        .getReference(Common.RESTAURANT_REF)
+                                        .child(Common.currentServerUser!!.uid!!)
+                                        .child(Common.ORDER_REF)
                                         .child(orderModel.key!!)
                                         .removeValue()
                                         .addOnFailureListener{
@@ -326,7 +328,9 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
         rdiRestorePlaced: RadioButton?
     ) {
         val tempList:MutableList<ShipperModel> = ArrayList()
-        val shipperRef = FirebaseDatabase.getInstance().getReference(Common.SHIPPER_REF)
+        val shipperRef = FirebaseDatabase.getInstance().getReference(Common.RESTAURANT_REF)
+            .child(Common.currentServerUser!!.restaurant!!)
+            .child(Common.SHIPPER_REF)
         val shipperActive = shipperRef.orderByChild("active").equalTo(true)
         shipperActive.addListenerForSingleValueEvent(object :ValueEventListener{
             override fun onCancelled(p0: DatabaseError) {
@@ -420,7 +424,9 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
         shippingOrder.currentLat = -1.0
         shippingOrder.currentLng = -1.0
         FirebaseDatabase.getInstance()
-            .getReference(Common.SHIPPING_ORDER_REF)
+            .getReference(Common.RESTAURANT_REF)
+            .child(Common.currentServerUser!!.restaurant!!)
+            .child(Common.SHIPPING_ORDER_REF)
             .child(orderModel!!.key!!)
             .setValue(shippingOrder)
             .addOnFailureListener{e:Exception->
@@ -494,7 +500,9 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
 
 
             FirebaseDatabase.getInstance()
-                .getReference(Common.ORDER_REF)
+                .getReference(Common.RESTAURANT_REF)
+                .child(Common.currentServerUser!!.uid!!)
+                .child(Common.ORDER_REF)
                 .child(orderModel.key!!)
                 .removeValue()
                 .addOnFailureListener{throawable -> Toast.makeText(context!!,""+throawable.message,
@@ -521,7 +529,9 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
             update_data.put("orderStatus",status)
 
             FirebaseDatabase.getInstance()
-                .getReference(Common.ORDER_REF)
+                .getReference(Common.RESTAURANT_REF)
+                .child(Common.currentServerUser!!.restaurant!!)
+                .child(Common.ORDER_REF)
                 .child(orderModel.key!!)
                 .updateChildren(update_data)
                 .addOnFailureListener{throawable -> Toast.makeText(context!!,""+throawable.message,
