@@ -1,5 +1,6 @@
 package com.example.justeatitadmin
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -73,7 +74,12 @@ class ChatListActivity : AppCompatActivity() {
                 holder.setListener(object :IRecyclerItemClickListener{
                     override fun onItemClick(view: View, pos: Int) {
 
-                        Toast.makeText(this@ChatListActivity,model.lastMessage,Toast.LENGTH_SHORT).show()
+                        //Toast.makeText(this@ChatListActivity,model.lastMessage,Toast.LENGTH_SHORT).show()
+
+                        val intent = Intent(this@ChatListActivity,ChatDetailActivity::class.java)
+                        intent.putExtra(Common.KEY_CHAT_ROOM_ID,adapter.getRef(pos).key)
+                        intent.putExtra(Common.KEY_CHAT_SENDER,model.createName)
+                        startActivity(intent)
                     }
 
                 })

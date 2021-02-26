@@ -30,6 +30,7 @@ import com.example.justeatitadmin.Common.Common
 import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.EventBus.ChangeMenuClick
 import com.example.justeatitadmin.EventBus.LoadOrderEvent
+import com.example.justeatitadmin.EventBus.PrintOrderEvent
 import com.example.justeatitadmin.Model.*
 import com.example.justeatitadmin.R
 import com.example.justeatitadmin.Remote.IFCMService
@@ -55,6 +56,7 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import java.lang.StringBuilder
+import java.util.jar.Manifest
 
 class OrderFragment: Fragment(), IShipperLoadCallbackListener {
     private val compositeDisposable = CompositeDisposable()
@@ -121,6 +123,47 @@ class OrderFragment: Fragment(), IShipperLoadCallbackListener {
                 viewHolder: RecyclerView.ViewHolder,
                 buffer: MutableList<MyButton>
             ) {
+
+                buffer.add(MyButton(context!!,
+                    "Print",
+                    30,
+                    0,
+                    Color.parseColor("#8b0010"),
+                    object : IMyButtonCallback {
+                        override fun onClick(pos: Int){
+
+                            Dexter.withActivity(activity)
+                                .withPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                .withListener(object :PermissionListener{
+                                    override fun onPermissionGranted(response: PermissionGrantedResponse?) {
+                                        EventBus.getDefault().postSticky(
+                                            PrintOrderEvent(
+                                            StringBuilder(Common.getAppPath(activity!!))
+                                                .append(Common.FILE_PRINT).toString(),
+                                            adapter!!.getItemAtPosition(pos)
+                                        )
+                                        )
+                                    }
+
+                                    override fun onPermissionRationaleShouldBeShown(
+                                        permission: PermissionRequest?,
+                                        token: PermissionToken?
+                                    ) {
+                                        TODO("Not yet implemented")
+                                    }
+
+                                    override fun onPermissionDenied(response: PermissionDeniedResponse?) {
+                                        Toast.makeText(context,"You must accept this permission",Toast.LENGTH_SHORT).show()
+                                    }
+
+                                }).check()
+
+                        }
+
+                    })
+                )
+
+
                 buffer.add(MyButton(context!!,
                     "Directions",
                     30,

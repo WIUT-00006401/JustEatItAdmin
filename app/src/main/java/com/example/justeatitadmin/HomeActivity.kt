@@ -1,9 +1,12 @@
 package com.example.justeatitadmin
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.print.PrintAttributes
+import android.print.PrintManager
 import android.util.Log
 import android.view.LayoutInflater
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -23,12 +26,17 @@ import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.navigation.NavController
+import com.example.justeatitadmin.Adapter.PdfDocumentAdapter
 import com.example.justeatitadmin.Common.Common
+import com.example.justeatitadmin.Common.PDFUtils
 import com.example.justeatitadmin.EventBus.CategoryClick
 import com.example.justeatitadmin.EventBus.ChangeMenuClick
+import com.example.justeatitadmin.EventBus.PrintOrderEvent
 import com.example.justeatitadmin.EventBus.ToastEvent
+import com.example.justeatitadmin.Model.CartItem
 import com.example.justeatitadmin.Model.FCMResponse
 import com.example.justeatitadmin.Model.FCMSendData
+import com.example.justeatitadmin.Model.OrderModel
 import com.example.justeatitadmin.Remote.IFCMService
 import com.example.justeatitadmin.Remote.RetrofitFCMClient
 import com.google.firebase.auth.FirebaseAuth
@@ -36,15 +44,27 @@ import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
+import com.itextpdf.text.*
+import com.itextpdf.text.pdf.BaseFont
+import com.itextpdf.text.pdf.PdfWriter
+import io.reactivex.Observable
+import io.reactivex.Observer
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.functions.Action
+import io.reactivex.functions.Consumer
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.app_bar_home.*
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
 import java.lang.Exception
 import java.lang.StringBuilder
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -65,6 +85,8 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var storage: FirebaseStorage
     private var storageReference:StorageReference?=null
 
+    private lateinit var dialog:AlertDialog
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
@@ -73,13 +95,7 @@ class HomeActivity : AppCompatActivity() {
 
         fab_chat.setOnClickListener{startActivity(Intent(this,ChatListActivity::class.java))}
 
-        ifcmService = RetrofitFCMClient.getInstance().create(IFCMService::class.java)
-        storage = FirebaseStorage.getInstance()
-        storageReference = storage.reference
-
-        subscribeToTopic(Common.getNewOrderTopic())
-
-        updateToken()
+        init()
 
         drawerLayout= findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
@@ -160,6 +176,21 @@ class HomeActivity : AppCompatActivity() {
         menuClick = R.id.nav_category
 
         checkOpenOrderFragment()
+    }
+
+    private fun init(){
+        ifcmService = RetrofitFCMClient.getInstance().create(IFCMService::class.java)
+        storage = FirebaseStorage.getInstance()
+        storageReference = storage.reference
+
+        subscribeToTopic(Common.getNewOrderTopic())
+
+        updateToken()
+
+        dialog = AlertDialog.Builder(this)
+            .setCancelable(false)
+            .setMessage("Please wait...")
+            .create()
     }
 
 //    private fun showSendNewsDialog() {
@@ -401,4 +432,158 @@ class HomeActivity : AppCompatActivity() {
 //            }
 //        }
 //    }
+
+    @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
+    fun onPrintEventListener(event:PrintOrderEvent)
+    {
+        createPDFFile(event.path,event.orderModel)
+    }
+
+    private fun createPDFFile(path: String, orderModel: OrderModel) {
+        dialog!!.show()
+        if (File(path).exists())
+            File(path).delete()
+        try {
+            val document = Document()
+            //Save
+            PdfWriter.getInstance(document,FileOutputStream(path))
+            //Open
+            document.open()
+            //Setting
+            document.pageSize = (PageSize.A4)
+            document.addCreationDate()
+            document.addAuthor("Just Eat It")
+            document.addCreator(Common.currentServerUser!!.name)
+
+            //font setting
+            val colorAccent = BaseColor(0,153,204,255)
+            val fontSize = 20.0f
+
+            //Custom font
+            val fontName = BaseFont.createFont("assets/fonts/brandon_medium.otf","UTF-8",BaseFont.EMBEDDED)
+
+            //Create title of document
+            val titleFont = Font(fontName,36.0f,Font.NORMAL,BaseColor.BLACK)
+            PDFUtils.addNewItem(document,"Order Details", Element.ALIGN_CENTER,titleFont)
+
+            //Add more
+            val orderNumberFont = Font(fontName,fontSize,Font.NORMAL,colorAccent)
+            PDFUtils.addNewItem(document, "Order №:", Element.ALIGN_LEFT,orderNumberFont)
+
+            val orderNumberValueFont = Font(fontName,fontSize,Font.NORMAL,BaseColor.BLACK)
+            PDFUtils.addNewItem(document, orderModel.key!!,Element.ALIGN_LEFT,orderNumberValueFont)
+            PDFUtils.addLineSeparator(document)
+
+            //Date
+            PDFUtils.addNewItem(document, "Order Date:",Element.ALIGN_LEFT,orderNumberFont)
+                PDFUtils.addNewItem(document, SimpleDateFormat("dd-MM-yyyy").format(orderModel.createDate),
+                    Element.ALIGN_LEFT,orderNumberFont)
+            PDFUtils.addLineSeparator(document)
+
+            //Account name
+            PDFUtils.addNewItem(document, "Account Name:",Element.ALIGN_LEFT,orderNumberFont)
+            PDFUtils.addNewItem(document, orderModel.userName!!,
+                Element.ALIGN_LEFT,orderNumberValueFont)
+            PDFUtils.addLineSeparator(document)
+
+            //Product detail
+            PDFUtils.addLineSpace(document)
+            PDFUtils.addNewItem(document,"Product Detail",Element.ALIGN_CENTER,titleFont)
+            PDFUtils.addLineSeparator(document)
+
+            //Fetch img url and add to pdf
+            Observable.fromIterable(orderModel.cartItemList)
+                .flatMap({cartItem: CartItem -> Common.getBitmapFromUrl(this@HomeActivity,cartItem,document)})
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(Consumer { cartItem -> //on Next
+
+                    //Details on each item
+                    //Food name
+                    PDFUtils.addNewItemWithLeftAndRight(
+                        document,
+                        cartItem.foodName!!,
+                        "(0.0%)",
+                        titleFont,
+                        orderNumberValueFont
+                    )
+
+                    //Food size and addon
+                    PDFUtils.addNewItemWithLeftAndRight(
+                        document,
+                        "Size",
+                        Common.formatSizeJsonToString(cartItem.foodSize!!)!!,
+                        titleFont,
+                        orderNumberValueFont
+                    )
+                    PDFUtils.addNewItemWithLeftAndRight(
+                        document,
+                        "Addon",
+                        Common.formatAddonJsonToString(cartItem.foodAddon!!)!!,
+                        titleFont,
+                        orderNumberValueFont
+                    )
+
+                    //Food price
+                    PDFUtils.addNewItemWithLeftAndRight(
+                        document,
+                        StringBuilder().append(cartItem.foodQuantity)
+                            .append("*")
+                            .append(cartItem.foodExtraPrice + cartItem.foodPrice)
+                            .toString(),
+                        StringBuilder().append(cartItem.foodQuantity*(cartItem.foodExtraPrice + cartItem.foodPrice)).toString(),
+                        titleFont,
+                        orderNumberValueFont
+                    )
+
+                    //Last Separator
+                    PDFUtils.addLineSeparator(document)
+
+
+
+                }, Consumer{t -> //on Error
+                    dialog.dismiss()
+                    Toast.makeText(this@HomeActivity, t.message!!, Toast.LENGTH_SHORT).show()
+                },
+                Action { //on Complete
+
+                    PDFUtils.addLineSpace(document)
+                    PDFUtils.addLineSpace(document)
+
+                    PDFUtils.addNewItemWithLeftAndRight(
+                        document,
+                        "Total",
+                        StringBuilder().append(orderModel.totalPayment).toString(),
+                        titleFont,
+                        titleFont
+                    )
+
+                    //Close
+                    document.close()
+                    dialog.dismiss()
+                    Toast.makeText(this@HomeActivity,"Success", Toast.LENGTH_SHORT).show()
+                    printPDF()
+                })
+        }catch (e:FileNotFoundException){
+            e.printStackTrace()
+        }catch (e:IOException)
+        {
+            e.printStackTrace()
+        }catch (e:DocumentException)
+        {
+            e.printStackTrace()
+        }
+    }
+
+    private fun printPDF() {
+        val printManager = getSystemService(Context.PRINT_SERVICE) as PrintManager
+        try {
+            val printDocumentAdapter = PdfDocumentAdapter(
+                this,StringBuilder(Common.getAppPath(this)).append(Common.FILE_PRINT).toString())
+            printManager.print("Document",printDocumentAdapter,PrintAttributes.Builder().build())
+        }catch (e:Exception)
+        {
+            e.printStackTrace()
+        }
+    }
 }

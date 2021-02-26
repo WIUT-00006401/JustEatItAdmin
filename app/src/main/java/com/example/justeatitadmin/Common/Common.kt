@@ -3,12 +3,17 @@ package com.example.justeatitadmin.Common
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.OpenableColumns
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
@@ -17,12 +22,22 @@ import android.text.style.StyleSpan
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.fragment.app.FragmentActivity
+import com.bumptech.glide.Glide
+import com.example.justeatitadmin.HomeActivity
 import com.example.justeatitadmin.Model.*
 import com.example.justeatitadmin.R
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.database.FirebaseDatabase
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.itextpdf.text.Document
+import com.itextpdf.text.Image
+import io.reactivex.Observable
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.lang.StringBuilder
-import java.util.ArrayList
+import java.util.*
 
 object Common {
 
@@ -163,6 +178,93 @@ object Common {
             .toString()
     }
 
+    fun getFileName(contentResolver: ContentResolver?, fileUri: Uri): Any {
+        var result:String?=null
+        if (fileUri.scheme == "content")
+        {
+            val cursor = contentResolver!!.query(fileUri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst())
+                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+            }finally {
+                cursor!!.close()
+            }
+        }
+        if (result == null)
+        {
+            result = fileUri.path
+            val cut = result!!.lastIndexOf('/')
+            if (cut != -1) result = result.substring(cut+1)
+        }
+        return result
+    }
+
+    fun getAppPath(context: Context): String {
+        val dir = File(Environment.getExternalStorageDirectory().toString()
+        +File.separator
+        +context.resources.getString(R.string.app_name)
+        +File.separator)
+        if (!dir.exists())
+            dir.mkdir()
+        return dir.path+File.separator
+
+    }
+
+    fun getBitmapFromUrl(
+        context: Context,
+        cartItem: CartItem,
+        document: Document
+    ): Observable<CartItem> {
+        return Observable.fromCallable{
+            val bitmap = Glide.with(context)
+                .asBitmap()
+                .load(cartItem.foodImage)
+                .submit().get()
+            val image = Image.getInstance(bitmapToByteArray(bitmap))
+            image.scaleAbsolute(80.0f,80.0f)
+            document.add(image)
+            cartItem
+        }
+    }
+
+    private fun bitmapToByteArray(bitmap: Bitmap?): ByteArray? {
+        val stream = ByteArrayOutputStream()
+        bitmap!!.compress(Bitmap.CompressFormat.PNG,100,stream)
+        return stream.toByteArray()
+
+    }
+
+    fun formatSizeJsonToString(foodSize: String): String? {
+        return if (foodSize.equals("Default")) foodSize else{
+            val gson = Gson()
+            val sizeModel = gson.fromJson<SizeModel>(foodSize,SizeModel::class.java)
+            sizeModel.name
+        }
+    }
+
+    fun formatAddonJsonToString(foodAddon: String): String? {
+        return if (foodAddon.equals("Default")) foodAddon else{
+            val stringBuilder = StringBuilder()
+            val gson = Gson()
+            val addonModels = gson.fromJson<List<AddonModel>>(foodAddon,object :
+            TypeToken<List<AddonModel>>(){}.type)
+            for (addon in addonModels)
+                stringBuilder.append(addon.name).append(",")
+            stringBuilder.substring(0,stringBuilder.length-1)
+        }
+    }
+
+    enum class ACTION{
+        CREATE,
+        DELETE,
+        UPDATE
+
+    }
+
+    val FILE_PRINT: String = "last_order_print"
+    val CHAT_DETAIL_REF: String = "ChatDetail"
+    val KEY_CHAT_SENDER: String?="CHAT_SENDER"
+    val KEY_CHAT_ROOM_ID: String?="CHAT_ROOM_ID"
     val CHAT_REF: String = "Chat"
     val RESTAURANT_REF: String = "Restaurant"
     val SHIPPING_ORDER_REF: String="ShippingOrder"
