@@ -1,3 +1,5 @@
 package com.example.justeatitadmin.EventBus
 
-class ToastEvent (var isUpdate:Boolean, var isBackFromFoodList:Boolean)
+import com.example.justeatitadmin.Common.Common
+
+class ToastEvent (var action:Common.ACTION, var isBackFromFoodList:Boolean)

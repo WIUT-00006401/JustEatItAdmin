@@ -186,7 +186,7 @@ class FoodListFragment : Fragment() {
                                         Common.categorySelected!!.foods!!.removeAt(pos)
                                     else
                                         Common.categorySelected!!.foods!!.removeAt(foodModel.positionInList)
-                                    updateFood(Common.categorySelected!!.foods,true)
+                                    updateFood(Common.categorySelected!!.foods,Common.ACTION.DELETE)
                                 })
                             val deleteDialog = builder.create()
                             deleteDialog.show()
@@ -258,6 +258,89 @@ class FoodListFragment : Fragment() {
         }
     }
 
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_create)
+            showAddFoodDialog()
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun showAddFoodDialog() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
+        builder.setTitle("Create")
+        builder.setMessage("Please fill Information")
+
+        val itemView = LayoutInflater.from(context).inflate(R.layout.layout_update_food, null)
+
+        val edt_food_name = itemView.findViewById<View>(R.id.edt_food_name) as EditText
+        val edt_food_price = itemView.findViewById<View>(R.id.edt_food_price) as EditText
+        val edt_food_description = itemView.findViewById<View>(R.id.edt_food_description) as EditText
+        img_food = itemView.findViewById<View>(R.id.img_food_image) as ImageView
+
+        //Set data
+
+        Glide.with(context!!).load(R.drawable.ic_image_gray_24dp).into(img_food!!)
+
+        //Set event
+        img_food!!.setOnClickListener {
+            val intent = Intent()
+            intent.type = "image/*"
+            intent.action = Intent.ACTION_GET_CONTENT
+            startActivityForResult(
+                Intent.createChooser(intent, "Select Picture"),
+                PICK_IMAGE_REQUEST
+            )
+        }
+
+        builder.setNegativeButton("CANCEL", {dialogInterface, _-> dialogInterface.dismiss()})
+        builder.setPositiveButton("Create"){dialogInterface, i->
+
+            val updateFood = FoodModel()
+            updateFood.name = edt_food_name.text.toString()
+            updateFood.price = if (TextUtils.isEmpty(edt_food_price.text))
+                0
+            else
+                edt_food_price.text.toString().toLong()
+            updateFood.description = edt_food_description.text.toString()
+
+            if (imageUri != null)
+            {
+                dialog.setMessage("Uploading...")
+                dialog.show()
+
+                val imageName = UUID.randomUUID().toString()
+                val imageFolder = storageReference.child("images/$imageName")
+                imageFolder.putFile(imageUri!!)
+                    .addOnFailureListener{e->
+                        dialog.dismiss()
+                        Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnProgressListener { taskSnapshot ->
+                        val progress = 100.0*taskSnapshot.bytesTransferred/taskSnapshot.totalByteCount
+                        dialog.setMessage("Uploaded $progress%")
+                    }
+                    .addOnSuccessListener { taskSnapshot ->
+                        dialogInterface.dismiss()
+                        imageFolder.downloadUrl.addOnSuccessListener { uri ->
+                            dialog.dismiss()
+                            updateFood.image = uri.toString()
+                            if (Common.categorySelected!!.foods == null)
+                                Common.categorySelected!!.foods = ArrayList()
+                            Common.categorySelected!!.foods!!.add(updateFood)
+                            updateFood(Common.categorySelected!!.foods!!,Common.ACTION.CREATE)
+                        }
+                    }
+            }
+            else
+            {
+                Common.categorySelected!!.foods!!.add(updateFood)
+                updateFood(Common.categorySelected!!.foods!!,Common.ACTION.CREATE)
+            }
+        }
+        builder.setView(itemView)
+        val updateDialog = builder.create()
+        updateDialog.show()
+    }
+
     private fun showUpdateDialog(pos: Int,foodModel: FoodModel) {
         val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
         builder.setTitle("Update")
@@ -320,14 +403,14 @@ class FoodListFragment : Fragment() {
                             dialog.dismiss()
                             updateFood.image = uri.toString()
                             Common.categorySelected!!.foods!![pos] = updateFood
-                            updateFood(Common.categorySelected!!.foods!!,false)
+                            updateFood(Common.categorySelected!!.foods!!,Common.ACTION.UPDATE)
                         }
                     }
             }
             else
             {
                 Common.categorySelected!!.foods!![pos] = updateFood
-                updateFood(Common.categorySelected!!.foods!!,false)
+                updateFood(Common.categorySelected!!.foods!!,Common.ACTION.UPDATE)
             }
         }
         builder.setView(itemView)
@@ -347,7 +430,7 @@ class FoodListFragment : Fragment() {
         }
     }
 
-    private fun updateFood(foods: MutableList<FoodModel>?,isDelete: Boolean) {
+    private fun updateFood(foods: MutableList<FoodModel>?,action: Common.ACTION) {
         val updateData = HashMap<String,Any>()
         updateData["foods"] = foods!!
 
@@ -362,7 +445,7 @@ class FoodListFragment : Fragment() {
                 if(task.isSuccessful)
                 {
                     foodListViewModel.getMutableFoodModelListData()
-                    EventBus.getDefault().postSticky(ToastEvent(!isDelete,true))
+                    EventBus.getDefault().postSticky(ToastEvent(action,true))
                 }
             }
     }

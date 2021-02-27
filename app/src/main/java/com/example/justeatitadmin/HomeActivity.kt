@@ -412,7 +412,10 @@ class HomeActivity : AppCompatActivity() {
     @Subscribe(sticky = true,threadMode = ThreadMode.MAIN)
     fun onToastEvent(event: ToastEvent)
     {
-        if (event.isUpdate) {
+        if (event.action == Common.ACTION.CREATE) {
+            Toast.makeText(this,"Create success", Toast.LENGTH_SHORT).show()
+        }
+        else if (event.action == Common.ACTION.UPDATE) {
             Toast.makeText(this,"Update success", Toast.LENGTH_SHORT).show()
         }
         else{

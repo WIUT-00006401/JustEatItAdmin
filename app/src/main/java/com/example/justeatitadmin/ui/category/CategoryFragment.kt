@@ -6,9 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.view.animation.AnimationUtils
 import android.view.animation.LayoutAnimationController
 import android.widget.EditText
@@ -30,6 +28,7 @@ import com.example.justeatitadmin.Common.MySwipeHelper
 import com.example.justeatitadmin.Common.SpacesItemDecoration
 import com.example.justeatitadmin.EventBus.ToastEvent
 import com.example.justeatitadmin.Model.CategoryModel
+import com.example.justeatitadmin.Model.FoodModel
 import com.example.justeatitadmin.R
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -138,6 +137,21 @@ class CategoryFragment : Fragment() {
             }
 
         }
+
+        setHasOptionsMenu(true)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.action_bar_menu,menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_create)
+        {
+            showAddDialog()
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun showDeleteDialog() {
@@ -165,7 +179,7 @@ class CategoryFragment : Fragment() {
             .addOnFailureListener{e->Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show() }
             .addOnCompleteListener{task ->
                 categoryViewModel!!.loadCategory()
-                EventBus.getDefault().postSticky(ToastEvent(false,false))
+                EventBus.getDefault().postSticky(ToastEvent(Common.ACTION.DELETE,false))
             }
     }
 
@@ -212,7 +226,7 @@ class CategoryFragment : Fragment() {
                         dialog.setMessage("Uploaded $progress%")
                     }
                     .addOnSuccessListener { taskSnapshot ->
-                        dialogInterface.dismiss()
+                        dialog.dismiss()
                         imageFolder.downloadUrl.addOnSuccessListener { uri ->
                             updateData["image"] = uri.toString()
                             updateCategory(updateData)
@@ -240,7 +254,83 @@ class CategoryFragment : Fragment() {
             .addOnFailureListener{e->Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show() }
             .addOnCompleteListener{task ->
                 categoryViewModel!!.loadCategory()
-                EventBus.getDefault().postSticky(ToastEvent(true,false))
+                EventBus.getDefault().postSticky(ToastEvent(Common.ACTION.UPDATE,false))
+            }
+    }
+
+    private fun showAddDialog() {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(context!!)
+        builder.setTitle("Create Category")
+        builder.setMessage("Please fill Information")
+
+        val itemView = LayoutInflater.from(context).inflate(R.layout.layout_update_category,null)
+        val edt_category_name = itemView.findViewById<View>(R.id.edt_category_name) as EditText
+        img_category = itemView.findViewById<View>(R.id.img_category) as ImageView
+
+        //Set data
+        Glide.with(context!!).load(R.drawable.ic_image_gray_24dp).into(img_category)
+
+        //Set event
+        img_category.setOnClickListener{view ->
+            val intent = Intent()
+            intent.type = "image/*"
+            intent.action = Intent.ACTION_GET_CONTENT
+            startActivityForResult(Intent.createChooser(intent,"Select Picture"), PICK_IMAGE_REQUEST)
+        }
+
+        builder.setNegativeButton("CANCEL"){dialogInterface, _-> dialogInterface.dismiss()}
+        builder.setPositiveButton("Create"){dialogInterface, _->
+
+            val categoryModel = CategoryModel()
+            categoryModel.name = edt_category_name.text.toString()
+            categoryModel.foods = ArrayList<FoodModel>()
+
+            if (imageUri !=null)
+            {
+                dialog.setMessage("Uploading...")
+                dialog.show()
+
+                val imageName = UUID.randomUUID().toString()
+                val imageFolder = storageReference.child("images/$imageName")
+                imageFolder.putFile(imageUri!!)
+                    .addOnFailureListener{e->
+                        dialog.dismiss()
+                        Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnProgressListener { taskSnapshot ->
+                        val progress = 100.0*taskSnapshot.bytesTransferred/taskSnapshot.totalByteCount
+                        dialog.setMessage("Uploaded $progress%")
+                    }
+                    .addOnSuccessListener { taskSnapshot ->
+                        dialog.dismiss()
+                        imageFolder.downloadUrl.addOnSuccessListener { uri ->
+                            categoryModel.image = uri.toString()
+                            addCategory(categoryModel)
+                        }
+                    }
+            }
+            else
+            {
+                addCategory(categoryModel)
+            }
+        }
+
+        builder.setView(itemView)
+        val updateDialog = builder.create()
+        updateDialog.show()
+    }
+
+    private fun addCategory(categoryModel: CategoryModel) {
+        FirebaseDatabase.getInstance()
+            .getReference(Common.RESTAURANT_REF)
+            .child(Common.currentServerUser!!.restaurant!!)
+            .child(Common.CATEGORY_REF)
+            .push()
+            .setValue(categoryModel)
+            .addOnFailureListener{e->Toast.makeText(context,""+e.message,Toast.LENGTH_SHORT).show() }
+            .addOnCompleteListener{task ->
+                categoryViewModel!!.loadCategory()
+                EventBus.getDefault().postSticky(ToastEvent(Common.ACTION.CREATE,false))
             }
     }
 
